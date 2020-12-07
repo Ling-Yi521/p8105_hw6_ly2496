@@ -110,7 +110,6 @@ child_df =
 sum(is.na(child_df))
 ```
 
-
 My proposed hypothesis states that factors affecting a baby's birth-weight includes gestational age in weeks, mother's age at delivery, mothers race, mother's pre-pregnancy BMI, and family income. 
 
 ```{r}
@@ -126,7 +125,7 @@ child_df %>%
   add_predictions(fit) %>%
   ggplot(aes(x = pred, y = resid)) + 
   geom_point()  + 
-  geom_smooth(se = TRUE) + 
+  geom_smooth(se = TRUE, color = "red") + 
   labs(title = "Predicted vs residuals", 
        x = "Predicted", 
        y = "Residuals")
@@ -144,3 +143,47 @@ Modeling head circumference, length, sex, and all interactions (including the th
 fit3 = lm(bwt~ bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead*blength*babysex , data = child_df)
 ```
 
+Cross validations with crossv_mc
+
+```{r}
+cv_child_df = 
+  crossv_mc(child_df, 100) 
+
+##make into a tibble
+
+cv_child_df =
+  cv_child_df %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble))
+```
+
+Cross-validating prediction accuracy of my model with the other two proposed in the homework. 
+
+```{r}
+cv_child_df =
+  cv_child_df %>% 
+  mutate(
+    fit  = map(train, ~lm(bwt~ gaweeks + mrace + momage + ppbmi + fincome, data = .x)),
+    fit1 = map(train, ~lm(bwt~ blength + gaweeks, data = .x)),
+    fit2 = map(train, ~lm(bwt~ bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead*blength*babysex, data = .x))
+    ) %>%
+      mutate(
+        rmse_fit = map2_dbl(fit, test, ~rmse(model = .x, data = .y)),
+        rmse_fit1 = map2_dbl(fit1, test, ~rmse(model = .x, data = .y)),
+        rmse_fit2 = map2_dbl(fit2, test, ~rmse(model = .x, data = .y))
+        )
+```
+
+```{r}
+cv_child_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+```
+Fit2 (the model with the interactions terms) is the best fit for these variables because it has the lowest foot-meam-square deviation. 
