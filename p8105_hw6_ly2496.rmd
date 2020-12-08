@@ -26,6 +26,9 @@ scale_fill_discrete = scale_fill_viridis_d
 theme_set(theme_minimal() + theme(legend.position = "bottom"))
 ```
 
+# Problem 1
+
+
 ```{r}
 homicide_df = 
   read_csv("data/homicide-data.csv", na = c("", "NA", "Unknown")) %>% 
@@ -92,7 +95,7 @@ models_results_df %>%
 
 ```
 
-#Problem 2
+# Problem 2
 
 Uploading the dataset, cleaning, and converting numerical varibles to factors if needed. These variables include babysex, frace, mrace, maform. There is no missing data. 
 
@@ -135,6 +138,9 @@ Modeling length at birth and gestational age as predictors (main effects only)
 
 ```{r}
 fit1 = lm(bwt~ blength + gaweeks, data = child_df)
+
+broom::tidy(fit) %>% 
+    knitr::kable()
 ```
 
 Modeling head circumference, length, sex, and all interactions (including the three-way interactions) between these variables. 
@@ -186,4 +192,86 @@ cv_child_df %>%
   mutate(model = fct_inorder(model)) %>% 
   ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
-Fit2 (the model with the interactions terms) is the best fit for these variables because it has the lowest foot-meam-square deviation. 
+Fit2 (the model with the interactions terms) is the best fit for these variables because it has the lowest root-mean-square deviation. 
+
+# Problem 3
+
+Getting the dataset
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+Getting the r-squared for 5000 bootstap samples
+
+```{r}
+rsq_df =
+  weather_df %>% 
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::glance)) %>%
+    select(-strap, -models) %>% 
+      unnest(results) 
+```
+
+Graphing the results
+
+```{r}
+
+rsq_df %>% 
+  ggplot(aes(x = r.squared)) + 
+  geom_density() +
+  labs(
+    title = "Distribution of R-squared",
+    x = "R-squared",
+    y = "density"
+  )
+
+```
+The 95% confidence interval of R-squared distribution is (`r round(quantile(pull(rsq_df, r.squared), probs = c(0.025,0.975)), digits = 2)`).
+
+```{r}
+log_df = 
+  weather_df %>% 
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::tidy)) %>%
+  select(-strap, -models) %>% 
+  unnest(results) %>%
+  select(.id, term, estimate) %>% 
+   pivot_wider(
+    names_from = term, 
+    values_from = estimate) %>%
+  rename(
+    beta_0 = "(Intercept)") %>%
+    mutate(
+      logB = log(tmin*beta_0)
+         ) 
+```
+
+ Plotting the results
+ 
+```{r}
+log_df %>%
+  ggplot(aes(x = logB)) + 
+  geom_density() +
+  labs(
+    title = "Distribution of log(beta0*beta1)", 
+    x = "lob(beta0*beta1)",
+    y = "density"
+  )
+```
+ The 95% confidence interval of the Log(beta0*beta1) distribution is (`r round(quantile(pull(log_df, logB), probs = c(0.025,0.975)), digits = 2)`).
+
