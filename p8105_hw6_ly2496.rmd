@@ -95,6 +95,8 @@ models_results_df %>%
 
 ```
 
+From this graph, we see that New York, NY has the lowest OR and a narrow confidence interval while Albuquerque, NM has the highers OR and a fairly wide confidence interval. 
+
 # Problem 2
 
 Uploading the dataset, cleaning, and converting numerical varibles to factors if needed. These variables include babysex, frace, mrace, maform. There is no missing data. 
@@ -269,7 +271,7 @@ log_df %>%
   geom_density() +
   labs(
     title = "Distribution of log(beta0*beta1)", 
-    x = "lob(beta0*beta1)",
+    x = "log(beta0*beta1)",
     y = "density"
   )
 ```
